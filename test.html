@@ -3,22 +3,132 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>Prueba AR</title>
+  <meta name="theme-color" content="#000000">
+  <title>Prueba AR con cámara visible</title>
+
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.8/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:transparent!important;
+    }
+
+    #cameraPreview{
+      position:fixed;
+      inset:0;
+      width:100vw;
+      height:100vh;
+      object-fit:cover;
+      z-index:0;
+      display:block;
+      background:#000;
+    }
+
+    a-scene,.a-canvas,canvas{
+      position:fixed!important;
+      inset:0!important;
+      width:100vw!important;
+      height:100vh!important;
+      z-index:2!important;
+      background:transparent!important;
+    }
+
+    .arjs-video{
+      opacity:0!important;
+      pointer-events:none!important;
+    }
+
+    #status{
+      position:fixed;
+      z-index:20;
+      top:12px;
+      left:50%;
+      transform:translateX(-50%);
+      width:min(92vw,560px);
+      padding:10px 14px;
+      border-radius:12px;
+      background:rgba(0,0,0,.72);
+      color:#fff;
+      font-family:Arial,sans-serif;
+      text-align:center;
+      font-weight:700;
+    }
+  </style>
 </head>
-<body style="margin:0; overflow:hidden;">
-  <a-scene embedded vr-mode-ui="enabled:false" arjs="sourceType: webcam; debugUIEnabled: false;">
-    <a-marker preset="hiro">
+
+<body>
+  <video id="cameraPreview" autoplay muted playsinline></video>
+  <div id="status">Iniciando cámara…</div>
+
+  <a-scene
+    embedded
+    vr-mode-ui="enabled:false"
+    renderer="antialias:true; alpha:true;"
+    arjs="sourceType:webcam; debugUIEnabled:false;"
+  >
+    <a-marker id="marker" preset="hiro" emitevents="true">
       <a-box
         position="0 0.5 0"
         scale="1 1 1"
-        material="color: red; opacity: 1;"
-        animation="property: rotation; to: 360 360 0; dur: 4000; easing: linear; loop: true">
+        material="color:red"
+        animation="property:rotation;to:360 360 0;dur:4000;easing:linear;loop:true">
       </a-box>
-      <a-sphere position="0 1.6 0" radius="0.35" material="color: yellow;"></a-sphere>
+      <a-sphere position="0 1.6 0" radius="0.35" material="color:yellow"></a-sphere>
     </a-marker>
     <a-entity camera></a-entity>
   </a-scene>
+
+  <script>
+    const preview = document.getElementById('cameraPreview');
+    const status = document.getElementById('status');
+    const marker = document.getElementById('marker');
+
+    marker.addEventListener('markerFound', () => {
+      status.textContent = '¡HIRO detectado! Deberías ver el cubo rojo.';
+    });
+
+    marker.addEventListener('markerLost', () => {
+      status.textContent = 'Cámara visible. Buscando HIRO…';
+    });
+
+    function attachArStream() {
+      const videos = [...document.querySelectorAll('video')].filter(v => v !== preview);
+      const source = videos.find(v => v.srcObject && v.srcObject.getVideoTracks().length);
+
+      if (!source) return false;
+
+      if (preview.srcObject !== source.srcObject) {
+        preview.srcObject = source.srcObject;
+        preview.play().catch(()=>{});
+      }
+
+      // Forzamos también el video original por si Chrome decide mostrarlo.
+      source.style.setProperty('display','block','important');
+      source.style.setProperty('visibility','visible','important');
+      source.style.setProperty('opacity','0','important');
+
+      status.textContent = 'Cámara visible. Buscando HIRO…';
+      return true;
+    }
+
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries++;
+      if (attachArStream()) {
+        clearInterval(timer);
+      } else if (tries > 30) {
+        clearInterval(timer);
+        status.textContent = 'No pude copiar la cámara. Avisame este mensaje.';
+      }
+    }, 300);
+
+    new MutationObserver(() => attachArStream())
+      .observe(document.body,{childList:true,subtree:true});
+  </script>
 </body>
 </html>

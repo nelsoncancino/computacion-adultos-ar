@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Marcador HIRO - Computación para Adultos</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f5f8;
+      color: #111827;
+    }
+    .page {
+      width: min(92vw, 800px);
+      margin: 28px auto;
+      background: white;
+      padding: 34px;
+      text-align: center;
+      box-shadow: 0 12px 35px rgba(0,0,0,.12);
+      border-radius: 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: 30px; }
+    p { margin: 6px 0 22px; font-size: 17px; }
+    img {
+      width: min(72vw, 500px);
+      display: block;
+      margin: 0 auto;
+    }
+    .tip {
+      margin-top: 22px;
+      padding: 14px;
+      border: 2px solid #111827;
+      border-radius: 12px;
+      font-weight: 700;
+    }
+    @media print {
+      body { background: white; }
+      .page { box-shadow: none; margin: 0 auto; padding: 15mm; width: auto; }
+      img { width: 135mm; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>REALIDAD AUMENTADA</h1>
+    <p>Apuntá con el celular a este marcador.</p>
+    <img
+      src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png"
+      alt="Marcador HIRO para realidad aumentada"
+    />
+    <div class="tip">Imprimilo en A4. No lo recortes: dejá visible el borde blanco alrededor.</div>
+  </main>
+</body>
+</html>

@@ -2,210 +2,220 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#101827" />
-  <title>Computación para Adultos - Realidad Aumentada</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Computación para Adultos - AR</title>
 
+  <!-- Versiones fijadas para evitar cambios inesperados -->
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.8/aframe/build/aframe-ar.js"></script>
 
   <style>
-    * { box-sizing: border-box; }
-    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: Arial, Helvetica, sans-serif; }
-    .hud {
-      position: fixed;
-      z-index: 20;
-      left: 50%;
-      top: 14px;
-      transform: translateX(-50%);
-      width: min(92vw, 560px);
-      padding: 12px 16px;
-      border-radius: 16px;
-      background: rgba(10, 16, 28, 0.88);
-      color: white;
-      text-align: center;
-      box-shadow: 0 8px 28px rgba(0,0,0,.28);
-      backdrop-filter: blur(8px);
-      pointer-events: none;
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#08111f;color:#fff}
+    #start{
+      position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+      padding:24px;background:radial-gradient(circle at top,#16315e 0,#08111f 55%);
     }
-    .hud strong { display: block; font-size: 18px; margin-bottom: 3px; }
-    .hud span { font-size: 14px; opacity: .9; }
-    #status {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 5px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.14);
-      font-weight: 700;
+    .card{
+      width:min(92vw,520px);padding:26px;border-radius:22px;background:rgba(12,22,40,.96);
+      box-shadow:0 20px 60px rgba(0,0,0,.45);text-align:center;border:1px solid rgba(255,255,255,.12)
     }
-    #status.found { background: rgba(27, 180, 92, .9); }
-    .footer {
-      position: fixed;
-      z-index: 20;
-      bottom: 10px;
-      width: 100%;
-      text-align: center;
-      color: white;
-      text-shadow: 0 1px 4px black;
-      font-size: 12px;
-      pointer-events: none;
+    h1{font-size:26px;margin:0 0 8px}.sub{opacity:.88;line-height:1.4;margin-bottom:18px}
+    button,a.btn{
+      width:100%;display:block;padding:15px 18px;border:0;border-radius:14px;font-size:17px;font-weight:700;
+      cursor:pointer;text-decoration:none
+    }
+    #go{background:#5ce1e6;color:#062033}
+    a.btn{margin-top:10px;background:#202d44;color:#fff}
+    #diag{margin-top:14px;min-height:44px;padding:10px;border-radius:12px;background:rgba(255,255,255,.07);font-size:14px;line-height:1.35}
+    #diag.ok{background:rgba(34,197,94,.18)}
+    #diag.err{background:rgba(239,68,68,.18)}
+    #hud{
+      position:fixed;z-index:50;left:50%;top:12px;transform:translateX(-50%);
+      width:min(94vw,560px);padding:10px 14px;border-radius:15px;background:rgba(6,12,22,.84);
+      text-align:center;display:none;pointer-events:none;backdrop-filter:blur(7px)
+    }
+    #hud strong{display:block;font-size:17px}#status{font-size:13px;opacity:.92;margin-top:3px}
+    #fallback{
+      position:fixed;z-index:60;left:50%;bottom:12px;transform:translateX(-50%);
+      width:min(94vw,560px);display:none;text-align:center;font-size:12px;padding:8px 10px;
+      border-radius:12px;background:rgba(6,12,22,.78)
     }
   </style>
+</head>
+<body>
+  <div id="start">
+    <div class="card">
+      <h1>Realidad aumentada</h1>
+      <div class="sub">
+        Tocá el botón, permití el uso de la cámara y después apuntá al marcador HIRO.
+      </div>
+      <button id="go">INICIAR CÁMARA</button>
+      <a class="btn" href="marker.html" target="_blank" rel="noopener">VER MARCADOR HIRO</a>
+      <div id="diag">Todavía no iniciamos la cámara.</div>
+    </div>
+  </div>
+
+  <div id="hud">
+    <strong>Computación para Adultos</strong>
+    <div id="status">Iniciando cámara…</div>
+  </div>
+  <div id="fallback">Si la cámara no aparece, abrí esta página directamente en Chrome o Safari, no dentro del navegador interno de otra app.</div>
+  <div id="sceneHost"></div>
 
   <script>
-    AFRAME.registerComponent('marker-feedback', {
-      init: function () {
-        const status = document.getElementById('status');
-        this.el.addEventListener('markerFound', () => {
-          status.textContent = '¡Marcador detectado!';
-          status.classList.add('found');
+    const start = document.getElementById('start');
+    const go = document.getElementById('go');
+    const diag = document.getElementById('diag');
+    const hud = document.getElementById('hud');
+    const status = document.getElementById('status');
+    const fallback = document.getElementById('fallback');
+
+    function setDiag(msg, type='') {
+      diag.className = type;
+      diag.textContent = msg;
+    }
+
+    function buildScene() {
+      document.getElementById('sceneHost').innerHTML = `
+        <a-scene
+          embedded
+          vr-mode-ui="enabled: false"
+          renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true"
+          arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false;"
+        >
+          <a-marker id="hiroMarker" preset="hiro" emitevents="true">
+            <a-cylinder position="0 0.04 0" radius="0.72" height="0.08"
+              material="color:#152238;metalness:.35;roughness:.5"></a-cylinder>
+
+            <a-box position="0 0.14 0" width="1.02" height="0.07" depth="0.66"
+              material="color:#aeb7c4;metalness:.55;roughness:.32"></a-box>
+
+            <a-box position="0 0.18 -0.28" width="0.88" height="0.018" depth="0.43"
+              material="color:#222b38"></a-box>
+
+            <a-entity position="0 0.50 0.27" rotation="-18 0 0">
+              <a-box width="0.96" height="0.56" depth="0.045"
+                material="color:#101722;metalness:.2;roughness:.4"></a-box>
+              <a-plane position="0 0 0.026" width="0.86" height="0.46"
+                material="color:#1769ff;shader:flat"></a-plane>
+              <a-text position="0 0.08 0.032" value="COMPUTACION" align="center"
+                width="1.35" color="#fff"></a-text>
+              <a-text position="0 -0.08 0.032" value="PARA ADULTOS" align="center"
+                width="1.08" color="#fff"></a-text>
+            </a-entity>
+
+            <a-torus position="0 0.58 0" radius="0.78" radius-tubular="0.012"
+              rotation="90 0 0"
+              material="color:#5ce1e6;emissive:#143d5b;emissiveIntensity:.7"
+              animation="property:rotation;to:90 360 0;dur:8000;easing:linear;loop:true"></a-torus>
+
+            <a-entity position="-0.72 0.43 -0.08"
+              animation="property:position;dir:alternate;dur:1200;loop:true;to:-0.72 0.54 -0.08">
+              <a-box width="0.40" height="0.19" depth="0.035" material="color:#2468d8"></a-box>
+              <a-text position="0 0 0.022" value="WORD" align="center" width="0.80" color="#fff"></a-text>
+            </a-entity>
+
+            <a-entity position="0.72 0.43 -0.08"
+              animation="property:position;dir:alternate;dur:1450;loop:true;to:0.72 0.55 -0.08">
+              <a-box width="0.40" height="0.19" depth="0.035" material="color:#16844d"></a-box>
+              <a-text position="0 0 0.022" value="EXCEL" align="center" width="0.80" color="#fff"></a-text>
+            </a-entity>
+
+            <a-entity position="-0.58 0.72 0.45"
+              animation="property:position;dir:alternate;dur:1600;loop:true;to:-0.58 0.83 0.45">
+              <a-sphere radius="0.14" material="color:#7f5af0"></a-sphere>
+              <a-text position="0 0 0.145" value="WEB" align="center" width="0.58" color="#fff"></a-text>
+            </a-entity>
+
+            <a-entity position="0.58 0.72 0.45"
+              animation="property:rotation;to:0 360 0;dur:5000;easing:linear;loop:true">
+              <a-sphere radius="0.16" material="color:#ff9f1c;metalness:.25"></a-sphere>
+              <a-text position="0 0 0.165" value="IA" align="center" width="0.55" color="#fff"></a-text>
+            </a-entity>
+
+            <a-text position="0 1.05 0" value="LA TECNOLOGIA CAMBIA"
+              align="center" width="2.1" color="#fff" side="double"></a-text>
+            <a-text position="0 0.90 0" value="NOSOTROS SEGUIMOS APRENDIENDO"
+              align="center" width="1.65" color="#5ce1e6" side="double"></a-text>
+          </a-marker>
+          <a-entity camera></a-entity>
+        </a-scene>`;
+
+      const scene = document.querySelector('a-scene');
+      const marker = document.getElementById('hiroMarker');
+
+      marker.addEventListener('markerFound', () => {
+        status.textContent = '¡Marcador detectado!';
+      });
+      marker.addEventListener('markerLost', () => {
+        status.textContent = 'Cámara OK. Buscando marcador HIRO…';
+      });
+
+      scene.addEventListener('loaded', () => {
+        status.textContent = 'Cámara iniciada. Apuntá al marcador HIRO.';
+      });
+
+      let checks = 0;
+      const timer = setInterval(() => {
+        checks++;
+        const video = document.querySelector('video');
+        if (video && video.readyState >= 2) {
+          status.textContent = 'Cámara OK. Buscando marcador HIRO…';
+          clearInterval(timer);
+        } else if (checks >= 8) {
+          status.textContent = 'No detecto video de cámara. Probá abrir en Chrome/Safari.';
+          fallback.style.display = 'block';
+          clearInterval(timer);
+        }
+      }, 1000);
+    }
+
+    go.addEventListener('click', async () => {
+      go.disabled = true;
+      go.textContent = 'VERIFICANDO…';
+
+      if (!window.isSecureContext) {
+        setDiag('Esta página no está en un contexto seguro HTTPS. La cámara no puede iniciarse.', 'err');
+        go.disabled = false;
+        go.textContent = 'REINTENTAR';
+        return;
+      }
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setDiag('Este navegador no permite acceder a la cámara desde esta página. Abrila en Chrome o Safari.', 'err');
+        go.disabled = false;
+        go.textContent = 'REINTENTAR';
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
         });
-        this.el.addEventListener('markerLost', () => {
-          status.textContent = 'Buscando el marcador HIRO…';
-          status.classList.remove('found');
-        });
+        stream.getTracks().forEach(t => t.stop());
+        setDiag('Permiso de cámara correcto.', 'ok');
+        start.style.display = 'none';
+        hud.style.display = 'block';
+        fallback.style.display = 'block';
+        buildScene();
+      } catch (e) {
+        const name = e && e.name ? e.name : 'Error';
+        let msg = 'No pude iniciar la cámara.';
+        if (name === 'NotAllowedError' || name === 'SecurityError') {
+          msg = 'El permiso de cámara fue bloqueado. Permití la cámara para este sitio o abrilo directamente en Chrome/Safari.';
+        } else if (name === 'NotFoundError') {
+          msg = 'No encontré una cámara disponible en este dispositivo.';
+        } else if (name === 'NotReadableError') {
+          msg = 'La cámara está siendo usada por otra aplicación. Cerrala y volvé a intentar.';
+        }
+        setDiag(msg + ' (' + name + ')', 'err');
+        go.disabled = false;
+        go.textContent = 'REINTENTAR';
       }
     });
   </script>
-</head>
-
-<body>
-  <div class="hud">
-    <strong>Computación para Adultos</strong>
-    <span>Permití la cámara y apuntá al marcador impreso.</span>
-    <div id="status">Buscando el marcador HIRO…</div>
-  </div>
-
-  <div class="footer">Mové el celular lentamente y mantené visible todo el marcador.</div>
-
-  <a-scene
-    embedded
-    vr-mode-ui="enabled: false"
-    renderer="antialias: true; alpha: true;"
-    arjs="sourceType: webcam; debugUIEnabled: false;"
-  >
-    <a-marker
-      preset="hiro"
-      marker-feedback
-      emitevents="true"
-      smooth="true"
-      smooth-count="8"
-      smooth-tolerance="0.01"
-      smooth-threshold="3"
-    >
-      <!-- Plataforma -->
-      <a-cylinder
-        position="0 0.04 0"
-        radius="0.78"
-        height="0.08"
-        material="color: #172033; metalness: .35; roughness: .45"
-      ></a-cylinder>
-
-      <!-- Notebook -->
-      <a-box
-        position="0 0.14 0"
-        width="1.05"
-        height="0.07"
-        depth="0.68"
-        material="color: #aeb7c4; metalness: .6; roughness: .3"
-      ></a-box>
-
-      <a-box
-        position="0 0.18 -0.30"
-        width="0.92"
-        height="0.018"
-        depth="0.46"
-        material="color: #222b38"
-      ></a-box>
-
-      <a-entity position="0 0.52 0.28" rotation="-18 0 0">
-        <a-box
-          width="0.98"
-          height="0.58"
-          depth="0.045"
-          material="color: #101722; metalness: .25; roughness: .4"
-        ></a-box>
-        <a-plane
-          position="0 0 0.026"
-          width="0.88"
-          height="0.47"
-          material="color: #1769ff; shader: flat"
-        ></a-plane>
-        <a-text
-          position="0 0.09 0.032"
-          value="COMPUTACION"
-          align="center"
-          width="1.45"
-          color="#ffffff"
-        ></a-text>
-        <a-text
-          position="0 -0.08 0.032"
-          value="PARA ADULTOS"
-          align="center"
-          width="1.18"
-          color="#ffffff"
-        ></a-text>
-      </a-entity>
-
-      <!-- Aro tecnológico -->
-      <a-torus
-        position="0 0.58 0"
-        radius="0.78"
-        radius-tubular="0.012"
-        rotation="90 0 0"
-        material="color: #5ce1e6; emissive: #143d5b; emissiveIntensity: .6"
-        animation="property: rotation; to: 90 360 0; dur: 9000; easing: linear; loop: true"
-      ></a-torus>
-
-      <!-- Tarjetas flotantes -->
-      <a-entity position="-0.73 0.44 -0.10"
-        animation="property: position; dir: alternate; dur: 1300; loop: true; to: -0.73 0.55 -0.10">
-        <a-box width="0.42" height="0.20" depth="0.035" material="color: #2468d8"></a-box>
-        <a-text position="0 0 0.022" value="WORD" align="center" width="0.85" color="#fff"></a-text>
-      </a-entity>
-
-      <a-entity position="0.73 0.42 -0.08"
-        animation="property: position; dir: alternate; dur: 1500; loop: true; to: 0.73 0.54 -0.08">
-        <a-box width="0.42" height="0.20" depth="0.035" material="color: #16844d"></a-box>
-        <a-text position="0 0 0.022" value="EXCEL" align="center" width="0.85" color="#fff"></a-text>
-      </a-entity>
-
-      <a-entity position="-0.60 0.68 0.48"
-        animation="property: position; dir: alternate; dur: 1700; loop: true; to: -0.60 0.81 0.48">
-        <a-sphere radius="0.14" material="color: #7f5af0; metalness: .2"></a-sphere>
-        <a-text position="0 0 0.145" value="WEB" align="center" width="0.62" color="#fff"></a-text>
-      </a-entity>
-
-      <a-entity position="0.60 0.72 0.48"
-        animation="property: rotation; to: 0 360 0; dur: 5500; easing: linear; loop: true">
-        <a-octahedron radius="0.17" material="color: #ff9f1c; metalness: .25"></a-octahedron>
-        <a-text position="0 0 0.18" value="IA" align="center" width="0.58" color="#fff"></a-text>
-      </a-entity>
-
-      <!-- Mensaje final -->
-      <a-entity position="0 1.10 0">
-        <a-text
-          value="LA TECNOLOGIA CAMBIA"
-          align="center"
-          width="2.25"
-          color="#ffffff"
-          side="double"
-        ></a-text>
-        <a-text
-          position="0 -0.16 0"
-          value="NOSOTROS SEGUIMOS APRENDIENDO"
-          align="center"
-          width="1.80"
-          color="#5ce1e6"
-          side="double"
-        ></a-text>
-        <a-entity
-          animation="property: scale; dir: alternate; dur: 900; loop: true; to: 1.08 1.08 1.08"
-        ></a-entity>
-      </a-entity>
-    </a-marker>
-
-    <a-entity camera></a-entity>
-  </a-scene>
 </body>
 </html>

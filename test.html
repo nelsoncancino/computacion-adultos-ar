@@ -4,131 +4,170 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <meta name="theme-color" content="#000000">
-  <title>Prueba AR con cámara visible</title>
+  <title>Prueba AR</title>
 
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.8/aframe/build/aframe-ar.js"></script>
 
   <style>
-    html,body{
-      margin:0;
-      width:100%;
-      height:100%;
-      overflow:hidden;
-      background:transparent!important;
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
+
+    #preview{
+      position:fixed;inset:0;width:100vw;height:100vh;object-fit:cover;
+      z-index:0;background:#000;display:none
     }
 
-    #cameraPreview{
-      position:fixed;
-      inset:0;
-      width:100vw;
-      height:100vh;
-      object-fit:cover;
-      z-index:0;
-      display:block;
-      background:#000;
+    #sceneHost{
+      position:fixed;inset:0;z-index:2;pointer-events:none
     }
 
-    a-scene,.a-canvas,canvas{
-      position:fixed!important;
-      inset:0!important;
-      width:100vw!important;
-      height:100vh!important;
-      z-index:2!important;
-      background:transparent!important;
+    a-scene,.a-canvas{
+      position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;
+      background:transparent!important
+    }
+
+    #start{
+      position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+      background:#08111f;color:#fff;padding:20px
+    }
+
+    .card{
+      width:min(92vw,480px);padding:25px;border-radius:20px;background:#111d31;
+      text-align:center;box-shadow:0 15px 45px rgba(0,0,0,.5)
+    }
+
+    h1{font-size:24px;margin:0 0 10px}
+    p{line-height:1.4;opacity:.9}
+    button{
+      width:100%;border:0;border-radius:13px;padding:15px;font-size:17px;font-weight:700;
+      background:#5ce1e6;color:#072235
+    }
+
+    #msg{margin-top:14px;font-size:14px;min-height:38px}
+
+    #status{
+      position:fixed;top:12px;left:50%;transform:translateX(-50%);
+      z-index:20;width:min(92vw,550px);padding:10px 14px;border-radius:12px;
+      background:rgba(0,0,0,.72);color:#fff;text-align:center;font-weight:700;display:none
     }
 
     .arjs-video{
+      position:fixed!important;
+      width:1px!important;height:1px!important;
+      left:-100px!important;top:-100px!important;
       opacity:0!important;
-      pointer-events:none!important;
-    }
-
-    #status{
-      position:fixed;
-      z-index:20;
-      top:12px;
-      left:50%;
-      transform:translateX(-50%);
-      width:min(92vw,560px);
-      padding:10px 14px;
-      border-radius:12px;
-      background:rgba(0,0,0,.72);
-      color:#fff;
-      font-family:Arial,sans-serif;
-      text-align:center;
-      font-weight:700;
     }
   </style>
 </head>
-
 <body>
-  <video id="cameraPreview" autoplay muted playsinline></video>
-  <div id="status">Iniciando cámara…</div>
 
-  <a-scene
-    embedded
-    vr-mode-ui="enabled:false"
-    renderer="antialias:true; alpha:true;"
-    arjs="sourceType:webcam; debugUIEnabled:false;"
-  >
-    <a-marker id="marker" preset="hiro" emitevents="true">
-      <a-box
-        position="0 0.5 0"
-        scale="1 1 1"
-        material="color:red"
-        animation="property:rotation;to:360 360 0;dur:4000;easing:linear;loop:true">
-      </a-box>
-      <a-sphere position="0 1.6 0" radius="0.35" material="color:yellow"></a-sphere>
-    </a-marker>
-    <a-entity camera></a-entity>
-  </a-scene>
+  <video id="preview" autoplay muted playsinline></video>
+
+  <div id="start">
+    <div class="card">
+      <h1>Prueba de realidad aumentada</h1>
+      <p>Primero vamos a comprobar que ves la cámara. Después apuntá al marcador HIRO.</p>
+      <button id="startBtn">ABRIR CÁMARA</button>
+      <div id="msg">No hace falta instalar ninguna aplicación.</div>
+    </div>
+  </div>
+
+  <div id="status">Cámara visible. Buscando HIRO…</div>
+  <div id="sceneHost"></div>
 
   <script>
-    const preview = document.getElementById('cameraPreview');
+    const btn = document.getElementById('startBtn');
+    const start = document.getElementById('start');
+    const preview = document.getElementById('preview');
+    const msg = document.getElementById('msg');
     const status = document.getElementById('status');
-    const marker = document.getElementById('marker');
+    const host = document.getElementById('sceneHost');
 
-    marker.addEventListener('markerFound', () => {
-      status.textContent = '¡HIRO detectado! Deberías ver el cubo rojo.';
-    });
+    let sharedStream = null;
+    const nativeGetUserMedia = navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+      ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+      : null;
 
-    marker.addEventListener('markerLost', () => {
-      status.textContent = 'Cámara visible. Buscando HIRO…';
-    });
+    function buildAR() {
+      // AR.js pedirá una cámara. Le damos exactamente el stream que ya estamos mostrando.
+      navigator.mediaDevices.getUserMedia = () => Promise.resolve(sharedStream);
 
-    function attachArStream() {
-      const videos = [...document.querySelectorAll('video')].filter(v => v !== preview);
-      const source = videos.find(v => v.srcObject && v.srcObject.getVideoTracks().length);
+      host.innerHTML = `
+        <a-scene
+          embedded
+          vr-mode-ui="enabled:false"
+          renderer="antialias:true; alpha:true;"
+          arjs="sourceType:webcam; debugUIEnabled:false;"
+        >
+          <a-marker id="hiro" preset="hiro" emitevents="true">
+            <a-box
+              position="0 0.5 0"
+              material="color:red"
+              animation="property:rotation;to:360 360 0;dur:4000;easing:linear;loop:true">
+            </a-box>
+            <a-sphere position="0 1.6 0" radius="0.35" material="color:yellow"></a-sphere>
+          </a-marker>
+          <a-entity camera></a-entity>
+        </a-scene>`;
 
-      if (!source) return false;
+      const marker = document.getElementById('hiro');
 
-      if (preview.srcObject !== source.srcObject) {
-        preview.srcObject = source.srcObject;
-        preview.play().catch(()=>{});
-      }
+      marker.addEventListener('markerFound', () => {
+        status.textContent = '¡HIRO detectado! Mirá el cubo rojo sobre el marcador.';
+      });
 
-      // Forzamos también el video original por si Chrome decide mostrarlo.
-      source.style.setProperty('display','block','important');
-      source.style.setProperty('visibility','visible','important');
-      source.style.setProperty('opacity','0','important');
+      marker.addEventListener('markerLost', () => {
+        status.textContent = 'Cámara visible. Buscando HIRO…';
+      });
 
-      status.textContent = 'Cámara visible. Buscando HIRO…';
-      return true;
+      // Si AR.js ya tomó el stream, podemos restaurar la función nativa.
+      setTimeout(() => {
+        if (nativeGetUserMedia) {
+          navigator.mediaDevices.getUserMedia = nativeGetUserMedia;
+        }
+      }, 4000);
     }
 
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries++;
-      if (attachArStream()) {
-        clearInterval(timer);
-      } else if (tries > 30) {
-        clearInterval(timer);
-        status.textContent = 'No pude copiar la cámara. Avisame este mensaje.';
-      }
-    }, 300);
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = 'ABRIENDO…';
+      msg.textContent = 'Esperando permiso de cámara…';
 
-    new MutationObserver(() => attachArStream())
-      .observe(document.body,{childList:true,subtree:true});
+      if (!nativeGetUserMedia) {
+        msg.textContent = 'Este navegador no permite usar la cámara desde la web.';
+        btn.disabled = false;
+        btn.textContent = 'REINTENTAR';
+        return;
+      }
+
+      try {
+        sharedStream = await nativeGetUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio:false
+        });
+
+        preview.srcObject = sharedStream;
+        preview.style.display = 'block';
+
+        await preview.play();
+
+        start.style.display = 'none';
+        status.style.display = 'block';
+        status.textContent = 'Cámara visible. Buscando HIRO…';
+
+        buildAR();
+
+      } catch (err) {
+        msg.textContent = 'Error de cámara: ' + (err.name || err.message || 'desconocido');
+        btn.disabled = false;
+        btn.textContent = 'REINTENTAR';
+      }
+    });
   </script>
 </body>
 </html>

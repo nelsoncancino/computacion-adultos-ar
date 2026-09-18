@@ -2,70 +2,262 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <meta name="theme-color" content="#07111f">
-  <title>AR fácil - Computación para Adultos</title>
+  <title>Computación B - Realidad Aumentada</title>
 
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.3.1/model-viewer.min.js"></script>
 
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+      }
+    }
+  </script>
+
   <style>
     *{box-sizing:border-box}
-    html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:#07111f;color:#fff}
-    .wrap{min-height:100vh;display:flex;flex-direction:column}
-    header{padding:22px 18px 8px;text-align:center}
-    h1{margin:0;font-size:26px}
-    p{margin:8px auto 0;max-width:620px;line-height:1.4;opacity:.9}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#07111f;color:#fff}
+    .wrap{height:100%;display:flex;flex-direction:column}
+    header{padding:18px 16px 8px;text-align:center}
+    h1{margin:0;font-size:27px;letter-spacing:.3px}
+    .subtitle{margin-top:7px;font-size:16px;color:#5ce1e6;font-weight:700}
     model-viewer{
-      width:100%;
-      flex:1;
-      min-height:62vh;
-      background:radial-gradient(circle at 50% 38%,#1b396a 0,#07111f 62%);
+      width:100%;flex:1;min-height:0;
+      background:radial-gradient(circle at 50% 40%,#1d4775 0,#07111f 68%);
+      --poster-color:transparent;
     }
     .arbtn{
-      border:0;border-radius:999px;padding:14px 20px;font-size:16px;font-weight:800;
-      background:#5ce1e6;color:#062033;box-shadow:0 8px 24px rgba(0,0,0,.28)
+      border:0;border-radius:999px;padding:15px 22px;font-size:17px;font-weight:800;
+      background:#5ce1e6;color:#062033;box-shadow:0 8px 28px rgba(0,0,0,.35)
     }
-    .tip{
-      padding:14px 18px 20px;text-align:center;font-size:14px;opacity:.92
+    #state{
+      position:absolute;z-index:10;left:50%;top:50%;transform:translate(-50%,-50%);
+      width:min(88vw,420px);padding:14px 16px;border-radius:14px;
+      background:rgba(4,12,24,.88);text-align:center;font-size:15px;
     }
-    .fallback{
-      display:block;margin:10px auto 0;width:min(92vw,520px);padding:12px;border-radius:12px;
-      background:rgba(255,255,255,.07)
-    }
+    footer{padding:8px 14px 16px;text-align:center;font-size:13px;opacity:.9}
+    footer strong{color:#5ce1e6}
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <header>
-      <h1>Computación para Adultos</h1>
-      <p>Giralo con el dedo. Después tocá el botón para colocarlo en realidad aumentada.</p>
+      <h1>COMPUTACIÓN B</h1>
+      <div class="subtitle">Word · Excel · IA · ¡Vení a aprender!</div>
     </header>
 
     <model-viewer
-      src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-      ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz"
-      alt="Modelo 3D para demostración de realidad aumentada"
+      id="viewer"
+      alt="Computación B en realidad aumentada"
       ar
-      ar-modes="scene-viewer quick-look webxr"
+      ar-modes="webxr"
       ar-scale="auto"
       camera-controls
       auto-rotate
-      shadow-intensity="1.5"
-      exposure="1"
-      touch-action="pan-y">
+      autoplay
+      shadow-intensity="1.2"
+      exposure="1.05"
+      camera-orbit="0deg 72deg 7m"
+      min-camera-orbit="auto 35deg 4m"
+      max-camera-orbit="auto 100deg 10m"
+      interaction-prompt="auto">
 
-      <button slot="ar-button" class="arbtn">
-        VER EN MI ESPACIO
-      </button>
-
+      <button slot="ar-button" class="arbtn">VER EN MI ESPACIO</button>
     </model-viewer>
 
-    <div class="tip">
-      <strong>Prueba:</strong> tocá <b>VER EN MI ESPACIO</b> y seguí las instrucciones del teléfono.
-      <div class="fallback">
-        Acá no hay marcador HIRO. La idea es que el objeto aparezca directamente sobre una mesa o el piso.
-      </div>
-    </div>
+    <div id="state">Preparando modelo 3D de Computación B…</div>
+
+    <footer>
+      Tocá <strong>VER EN MI ESPACIO</strong> y apoyalo sobre una mesa o el piso.
+    </footer>
   </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFExporter } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/exporters/GLTFExporter.js';
+
+    const viewer = document.getElementById('viewer');
+    const state = document.getElementById('state');
+
+    function roundedRect(ctx,x,y,w,h,r,fill,stroke){
+      ctx.beginPath();
+      ctx.roundRect(x,y,w,h,r);
+      if(fill){ctx.fillStyle=fill;ctx.fill();}
+      if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=8;ctx.stroke();}
+    }
+
+    function centerText(ctx,text,y,fontSize,color){
+      ctx.font='800 '+fontSize+'px Arial, sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillStyle=color;
+      ctx.fillText(text,512,y);
+    }
+
+    function makeMainTexture(){
+      const c=document.createElement('canvas');
+      c.width=1024;c.height=640;
+      const x=c.getContext('2d');
+
+      const g=x.createLinearGradient(0,0,1024,640);
+      g.addColorStop(0,'#0b1c34');
+      g.addColorStop(1,'#153a63');
+      x.fillStyle=g;x.fillRect(0,0,1024,640);
+
+      roundedRect(x,24,24,976,592,38,'rgba(0,0,0,.08)','#5ce1e6');
+
+      centerText(x,'COMPUTACIÓN B',155,78,'#ffffff');
+      centerText(x,'Word  ·  Excel  ·  IA',320,58,'#5ce1e6');
+      centerText(x,'¡VENÍ A APRENDER!',480,66,'#ffffff');
+
+      return new THREE.CanvasTexture(c);
+    }
+
+    function makeLabelTexture(text,bg){
+      const c=document.createElement('canvas');
+      c.width=512;c.height=300;
+      const x=c.getContext('2d');
+      x.fillStyle=bg;x.fillRect(0,0,512,300);
+      roundedRect(x,12,12,488,276,30,null,'rgba(255,255,255,.9)');
+      x.font='800 78px Arial, sans-serif';
+      x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';
+      x.fillText(text,256,150);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function box(w,h,d,color){
+      return new THREE.Mesh(
+        new THREE.BoxGeometry(w,h,d),
+        new THREE.MeshStandardMaterial({color,metalness:.22,roughness:.5})
+      );
+    }
+
+    function texturedCard(text,bg,w,h){
+      const group=new THREE.Group();
+      const backing=box(w,h,.10,bg);
+      group.add(backing);
+
+      const tex=makeLabelTexture(text,bg);
+      tex.colorSpace=THREE.SRGBColorSpace;
+      const plane=new THREE.Mesh(
+        new THREE.PlaneGeometry(w*.92,h*.84),
+        new THREE.MeshBasicMaterial({map:tex,transparent:false})
+      );
+      plane.position.z=.056;
+      group.add(plane);
+      return group;
+    }
+
+    const scene=new THREE.Scene();
+
+    // Plataforma
+    const platform=new THREE.Mesh(
+      new THREE.CylinderGeometry(2.75,2.75,.14,64),
+      new THREE.MeshStandardMaterial({color:'#17263b',metalness:.35,roughness:.55})
+    );
+    platform.position.y=.07;
+    scene.add(platform);
+
+    // Notebook
+    const base=box(3.55,.16,1.75,'#aeb8c6');
+    base.position.set(0,.34,.52);
+    scene.add(base);
+
+    const keyboard=box(2.75,.035,.95,'#222b38');
+    keyboard.position.set(0,.445,.42);
+    scene.add(keyboard);
+
+    const screenFrame=box(3.18,1.92,.12,'#141b25');
+    screenFrame.position.set(0,1.48,-.36);
+    scene.add(screenFrame);
+
+    const mainTexture=makeMainTexture();
+    mainTexture.colorSpace=THREE.SRGBColorSpace;
+
+    const display=new THREE.Mesh(
+      new THREE.PlaneGeometry(2.94,1.68),
+      new THREE.MeshBasicMaterial({map:mainTexture})
+    );
+    display.position.set(0,1.48,-.294);
+    scene.add(display);
+
+    // Carteles flotantes
+    const word=texturedCard('WORD','#2166c1',1.25,.72);
+    word.position.set(-2.25,1.6,.08);
+    scene.add(word);
+
+    const excel=texturedCard('EXCEL','#238447',1.35,.72);
+    excel.position.set(2.25,1.6,.08);
+    scene.add(excel);
+
+    const ia=texturedCard('IA','#7b4bb3',1.05,.72);
+    ia.position.set(0,2.85,-.02);
+    scene.add(ia);
+
+    // Detalles luminosos
+    const glowMat=new THREE.MeshStandardMaterial({
+      color:'#5ce1e6',emissive:'#1a8090',emissiveIntensity:1.2,
+      metalness:.15,roughness:.35
+    });
+
+    const orb1=new THREE.Mesh(new THREE.SphereGeometry(.12,24,16),glowMat);
+    orb1.position.set(-1.72,2.55,.12);scene.add(orb1);
+    const orb2=orb1.clone();orb2.position.x=1.72;scene.add(orb2);
+
+    // Luz para materiales 3D
+    scene.add(new THREE.HemisphereLight(0xffffff,0x334466,2.4));
+    const key=new THREE.DirectionalLight(0xffffff,2.6);
+    key.position.set(3,6,5);scene.add(key);
+
+    // Animaciones suaves para los tres carteles.
+    const times=[0,1.5,3];
+    const clips=[];
+    [
+      [word,'wordCard'],
+      [excel,'excelCard'],
+      [ia,'iaCard']
+    ].forEach(([obj,name],i)=>{
+      const y=obj.position.y;
+      const values=[y,y+.14,y];
+      const track=new THREE.NumberKeyframeTrack(name+'.position[y]',times,values);
+      obj.name=name;
+      clips.push(new THREE.AnimationClip(name+'Float',3,-1,[track]));
+    });
+
+    const exporter=new GLTFExporter();
+
+    exporter.parse(
+      scene,
+      (result)=>{
+        try{
+          const blob=new Blob([result],{type:'model/gltf-binary'});
+          const url=URL.createObjectURL(blob);
+          viewer.src=url;
+
+          viewer.addEventListener('load',()=>{
+            state.style.display='none';
+          },{once:true});
+
+          viewer.addEventListener('error',()=>{
+            state.textContent='No pude cargar el modelo 3D. Cerrá la pestaña y abrila de nuevo.';
+          },{once:true});
+        }catch(e){
+          state.textContent='Error preparando el modelo 3D.';
+        }
+      },
+      (error)=>{
+        console.error(error);
+        state.textContent='Error preparando el modelo 3D.';
+      },
+      {
+        binary:true,
+        animations:clips,
+        onlyVisible:true
+      }
+    );
+  </script>
 </body>
 </html>

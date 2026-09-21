@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#07111f">
+  <title>Computación B - Imagen a video</title>
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Arial,Helvetica,sans-serif;background:#000}
+    a-scene{position:fixed!important;inset:0!important;width:100%!important;height:100%!important}
+
+    #start{
+      position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+      padding:24px;background:radial-gradient(circle at top,#17365e,#07111f 62%);color:white
+    }
+    .card{width:min(92vw,480px);padding:25px;border-radius:20px;background:#101d31;text-align:center}
+    h1{font-size:25px;margin:0 0 10px}
+    p{line-height:1.4;opacity:.9}
+    button{
+      width:100%;padding:15px;border:0;border-radius:14px;background:#5ce1e6;color:#062033;
+      font-weight:800;font-size:17px;cursor:pointer
+    }
+
+    #hud{
+      position:fixed;z-index:100;top:12px;left:50%;transform:translateX(-50%);
+      width:min(92vw,540px);padding:10px 14px;border-radius:12px;
+      background:rgba(0,0,0,.72);color:#fff;text-align:center;font-weight:700;
+      pointer-events:none;display:none
+    }
+
+    #videoOverlay{
+      position:fixed;z-index:300;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.35);padding:18px
+    }
+    #videoBox{
+      position:relative;width:min(94vw,760px);aspect-ratio:16/9;
+      border-radius:16px;overflow:hidden;background:#000;
+      box-shadow:0 20px 70px rgba(0,0,0,.65);border:2px solid rgba(255,255,255,.85)
+    }
+    #yt{width:100%;height:100%;border:0;display:block}
+    #soundHint{
+      position:absolute;left:50%;bottom:10px;transform:translateX(-50%);
+      background:rgba(0,0,0,.72);color:#fff;padding:7px 12px;border-radius:999px;
+      font-size:12px;pointer-events:none;white-space:nowrap
+    }
+    #close{
+      position:absolute;right:8px;top:8px;width:38px;height:38px;border-radius:50%;
+      background:rgba(0,0,0,.7);color:white;font-size:20px;padding:0;z-index:2
+    }
+  </style>
+</head>
+<body>
+
+  <div id="start">
+    <div class="card">
+      <h1>Computación B</h1>
+      <p>Tocá el botón y después apuntá a la imagen de prueba abierta en la computadora.</p>
+      <button id="startBtn">INICIAR CÁMARA</button>
+      <p id="startMsg">No necesitás instalar ninguna app.</p>
+    </div>
+  </div>
+
+  <div id="hud">Preparando cámara…</div>
+
+  <div id="videoOverlay">
+    <div id="videoBox">
+      <button id="close" aria-label="Cerrar">×</button>
+      <iframe id="yt"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      <div id="soundHint">El video arranca sin sonido; tocá el reproductor para activarlo.</div>
+    </div>
+  </div>
+
+  <a-scene
+    id="scene"
+    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;"
+    embedded
+    color-space="sRGB"
+    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <a-camera position="0 0 0" look-controls="enabled:false"></a-camera>
+
+    <a-entity id="target" mindar-image-target="targetIndex: 0">
+      <a-plane
+        position="0 0 0.01"
+        width="1"
+        height="0.552"
+        material="color:#5ce1e6; opacity:0.08; transparent:true">
+      </a-plane>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const scene = document.getElementById('scene');
+    const target = document.getElementById('target');
+    const start = document.getElementById('start');
+    const startBtn = document.getElementById('startBtn');
+    const startMsg = document.getElementById('startMsg');
+    const hud = document.getElementById('hud');
+    const overlay = document.getElementById('videoOverlay');
+    const iframe = document.getElementById('yt');
+    const close = document.getElementById('close');
+
+    const VIDEO_ID = '2H0oW_kYbJ8';
+    let arSystem = null;
+    let hideTimer = null;
+    let manuallyClosed = false;
+
+    function openVideo(){
+      clearTimeout(hideTimer);
+      manuallyClosed = false;
+      iframe.src =
+        'https://www.youtube-nocookie.com/embed/' + VIDEO_ID +
+        '?autoplay=1&mute=1&playsinline=1&controls=1&rel=0&modestbranding=1';
+      overlay.style.display='flex';
+      hud.textContent='¡Imagen detectada! Video abierto.';
+    }
+
+    function closeVideo(){
+      overlay.style.display='none';
+      iframe.src='';
+    }
+
+    scene.addEventListener('loaded', ()=>{
+      arSystem = scene.systems['mindar-image-system'];
+    });
+
+    scene.addEventListener('arReady', ()=>{
+      hud.style.display='block';
+      hud.textContent='Cámara lista. Apuntá a la imagen de prueba.';
+    });
+
+    scene.addEventListener('arError', ()=>{
+      hud.style.display='block';
+      hud.textContent='No pude iniciar la cámara. Revisá el permiso del sitio.';
+    });
+
+    target.addEventListener('targetFound', ()=>{
+      if(!manuallyClosed) openVideo();
+    });
+
+    target.addEventListener('targetLost', ()=>{
+      hud.textContent='Buscando la imagen de prueba…';
+      clearTimeout(hideTimer);
+      hideTimer=setTimeout(()=>{
+        closeVideo();
+        manuallyClosed=false;
+      },900);
+    });
+
+    close.addEventListener('click',()=>{
+      manuallyClosed=true;
+      closeVideo();
+      hud.textContent='Video cerrado. Alejá la cámara y volvé a apuntar para abrirlo otra vez.';
+    });
+
+    startBtn.addEventListener('click', async ()=>{
+      startBtn.disabled=true;
+      startBtn.textContent='INICIANDO…';
+      startMsg.textContent='Aceptá el permiso de cámara si aparece.';
+      try{
+        if(!arSystem) arSystem=scene.systems['mindar-image-system'];
+        await arSystem.start();
+        start.style.display='none';
+        hud.style.display='block';
+        hud.textContent='Cámara lista. Apuntá a la imagen de prueba.';
+      }catch(e){
+        startMsg.textContent='No se pudo iniciar la cámara: ' + (e?.message || e?.name || 'error');
+        startBtn.disabled=false;
+        startBtn.textContent='REINTENTAR';
+      }
+    });
+  </script>
+</body>
+</html>

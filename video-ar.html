@@ -1,112 +1,311 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <meta name="theme-color" content="#000000">
-  <title>Computación B - AR Video</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Computación B - AR</title>
 
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
-  <style>
-    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
-    .example-container{overflow:hidden;position:absolute;width:100%;height:100%;inset:0}
-
-    #hud{
-      position:fixed;z-index:100;top:12px;left:50%;transform:translateX(-50%);
-      width:min(92vw,540px);padding:10px 14px;border-radius:12px;
-      background:rgba(0,0,0,.72);color:#fff;text-align:center;font-weight:700;
-      pointer-events:none
+<script>
+  var Module = {
+    onRuntimeInitialized: function() {
+      window.cvReady = true;
+      const s=document.getElementById('status');
+      if(s) s.textContent='Motor visual listo. Tocá INICIAR.';
     }
+  };
+</script>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
 
-    #videoOverlay{
-      position:fixed;z-index:300;inset:0;display:none;align-items:center;justify-content:center;
-      background:rgba(0,0,0,.18);padding:16px;pointer-events:none
-    }
-
-    #videoBox{
-      width:min(94vw,760px);aspect-ratio:16/9;border-radius:16px;overflow:hidden;
-      background:#000;border:3px solid #fff;box-shadow:0 18px 60px rgba(0,0,0,.65);
-      pointer-events:auto
-    }
-
-    #yt{width:100%;height:100%;border:0;display:block}
-  </style>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
+#camera{
+  position:fixed;left:0;top:50%;transform:translateY(-50%);
+  width:100vw;height:auto;z-index:1;background:#000
+}
+#analysis{display:none}
+#hud{
+  position:fixed;z-index:50;top:10px;left:50%;transform:translateX(-50%);
+  width:min(94vw,620px);padding:10px 14px;border-radius:12px;
+  background:rgba(0,0,0,.72);color:#fff;text-align:center;font-weight:700
+}
+#start{
+  position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,#071426,#153d60);padding:22px;color:#fff
+}
+.card{width:min(92vw,480px);background:#0d1e31;padding:26px;border-radius:20px;text-align:center}
+.card h1{margin:0 0 10px;font-size:25px}
+.card p{line-height:1.4;opacity:.9}
+#go{width:100%;border:0;border-radius:14px;padding:15px;font-size:17px;font-weight:800;background:#65d8e8;color:#06233b}
+#arVideo{
+  position:fixed;z-index:20;display:none;border:3px solid #fff;border-radius:10px;
+  overflow:hidden;background:#000;box-shadow:0 12px 40px rgba(0,0,0,.55)
+}
+#arVideo iframe{width:100%;height:100%;border:0;display:block}
+#guide{
+  position:fixed;z-index:8;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:72vw;aspect-ratio:16/9;border:2px dashed rgba(255,255,255,.6);
+  border-radius:10px;pointer-events:none
+}
+</style>
 </head>
-
 <body>
-  <div class="example-container">
-    <a-scene
-      mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;"
-      embedded
-      color-space="sRGB"
-      renderer="colorManagement: true; physicallyCorrectLights: true"
-      vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false">
 
-      <a-assets>
-        <img id="card"
-          src="https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png">
-      </a-assets>
+<video id="camera" autoplay muted playsinline></video>
+<canvas id="analysis"></canvas>
+<div id="guide"></div>
+<div id="hud">Cargando motor visual…</div>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+<div id="arVideo">
+  <iframe id="yt"
+    allow="autoplay; encrypted-media; picture-in-picture"
+    allowfullscreen
+    referrerpolicy="strict-origin-when-cross-origin"></iframe>
+</div>
 
-      <a-entity id="target" mindar-image-target="targetIndex: 0">
-        <a-plane
-          src="#card"
-          position="0 0 0"
-          height="0.552"
-          width="1"
-          rotation="0 0 0"
-          material="opacity: 0.01; transparent: true">
-        </a-plane>
-      </a-entity>
-    </a-scene>
+<div id="start">
+  <div class="card">
+    <h1>Computación B · Realidad aumentada</h1>
+    <p>Esta versión usa la cámara normal del navegador. No usa VR. Apuntá a la diapositiva de prueba.</p>
+    <button id="go">INICIAR CÁMARA</button>
+    <p id="status">Cargando motor visual…</p>
   </div>
+</div>
 
-  <div id="hud">Permití la cámara. Después apuntá a la imagen de prueba.</div>
+<img id="reference" src="slide-target.svg" crossorigin="anonymous" hidden>
 
-  <div id="videoOverlay">
-    <div id="videoBox">
-      <iframe id="yt"
-        allow="autoplay; encrypted-media; picture-in-picture"
-        allowfullscreen
-        referrerpolicy="strict-origin-when-cross-origin">
-      </iframe>
-    </div>
-  </div>
+<script>
+const camera=document.getElementById('camera');
+const canvas=document.getElementById('analysis');
+const ctx=canvas.getContext('2d',{willReadFrequently:true});
+const refImg=document.getElementById('reference');
+const start=document.getElementById('start');
+const go=document.getElementById('go');
+const status=document.getElementById('status');
+const hud=document.getElementById('hud');
+const arVideo=document.getElementById('arVideo');
+const yt=document.getElementById('yt');
 
-  <script>
-    const target = document.getElementById('target');
-    const hud = document.getElementById('hud');
-    const overlay = document.getElementById('videoOverlay');
-    const yt = document.getElementById('yt');
-    const scene = document.querySelector('a-scene');
+let orb=null, matcher=null;
+let refGray=null, refKP=null, refDesc=null;
+let processing=false, misses=0, detected=false;
+const YT='https://www.youtube-nocookie.com/embed/2H0oW_kYbJ8?autoplay=1&mute=1&playsinline=1&controls=1&rel=0';
 
-    const videoUrl =
-      'https://www.youtube-nocookie.com/embed/2H0oW_kYbJ8' +
-      '?autoplay=1&mute=1&playsinline=1&controls=1&rel=0';
+function waitForCv(){
+  return new Promise(resolve=>{
+    if(window.cvReady && window.cv) return resolve();
+    const t=setInterval(()=>{
+      if(window.cvReady && window.cv){clearInterval(t);resolve();}
+    },100);
+  });
+}
 
-    scene.addEventListener('arReady', () => {
-      hud.textContent = 'Cámara lista. Apuntá a la imagen de prueba.';
+function waitImg(img){
+  return new Promise((resolve,reject)=>{
+    if(img.complete && img.naturalWidth) return resolve();
+    img.onload=resolve; img.onerror=reject;
+  });
+}
+
+async function prepareReference(){
+  await waitForCv();
+  await waitImg(refImg);
+
+  const tmp=document.createElement('canvas');
+  tmp.width=640;
+  tmp.height=Math.round(640*refImg.naturalHeight/refImg.naturalWidth);
+  tmp.getContext('2d').drawImage(refImg,0,0,tmp.width,tmp.height);
+
+  const ref=cv.imread(tmp);
+  refGray=new cv.Mat();
+  cv.cvtColor(ref,refGray,cv.COLOR_RGBA2GRAY);
+  ref.delete();
+
+  refKP=new cv.KeyPointVector();
+  refDesc=new cv.Mat();
+  orb=new cv.ORB(1200);
+  const mask=new cv.Mat();
+  orb.detectAndCompute(refGray,mask,refKP,refDesc);
+  mask.delete();
+
+  matcher=new cv.BFMatcher(cv.NORM_HAMMING,false);
+  return refDesc && !refDesc.empty();
+}
+
+function showOverlay(corners, frameW, frameH){
+  const vr=camera.getBoundingClientRect();
+  const sx=vr.width/frameW, sy=vr.height/frameH;
+
+  const pts=[];
+  for(let i=0;i<4;i++){
+    pts.push({
+      x: vr.left + corners[i].x*sx,
+      y: vr.top  + corners[i].y*sy
+    });
+  }
+
+  const minX=Math.max(0,Math.min(...pts.map(p=>p.x)));
+  const minY=Math.max(0,Math.min(...pts.map(p=>p.y)));
+  const maxX=Math.min(innerWidth,Math.max(...pts.map(p=>p.x)));
+  const maxY=Math.min(innerHeight,Math.max(...pts.map(p=>p.y)));
+
+  const w=Math.max(120,maxX-minX);
+  const h=Math.max(68,maxY-minY);
+
+  arVideo.style.left=minX+'px';
+  arVideo.style.top=minY+'px';
+  arVideo.style.width=w+'px';
+  arVideo.style.height=h+'px';
+
+  const rel=pts.map(p=>({
+    x:100*(p.x-minX)/w,
+    y:100*(p.y-minY)/h
+  }));
+  arVideo.style.clipPath='polygon('+
+    rel.map(p=>p.x.toFixed(1)+'% '+p.y.toFixed(1)+'%').join(',')+')';
+
+  if(!detected){
+    yt.src=YT;
+    arVideo.style.display='block';
+    detected=true;
+  }
+  misses=0;
+  hud.textContent='¡Diapositiva detectada! Video superpuesto.';
+}
+
+function hideOverlay(){
+  detected=false;
+  arVideo.style.display='none';
+  arVideo.style.clipPath='none';
+  yt.src='';
+  hud.textContent='Buscando la diapositiva…';
+}
+
+function analyze(){
+  if(processing || !camera.videoWidth || !refDesc || refDesc.empty()) return;
+  processing=true;
+
+  const targetW=640;
+  const targetH=Math.round(targetW*camera.videoHeight/camera.videoWidth);
+  canvas.width=targetW; canvas.height=targetH;
+  ctx.drawImage(camera,0,0,targetW,targetH);
+
+  let frame=null, gray=null, kp=null, desc=null, mask=null, matches=null;
+  let srcPts=null, dstPts=null, H=null, inlierMask=null, cornersMat=null, projected=null;
+
+  try{
+    frame=cv.imread(canvas);
+    gray=new cv.Mat();
+    cv.cvtColor(frame,gray,cv.COLOR_RGBA2GRAY);
+
+    kp=new cv.KeyPointVector();
+    desc=new cv.Mat();
+    mask=new cv.Mat();
+    orb.detectAndCompute(gray,mask,kp,desc);
+
+    if(desc.empty()){
+      misses++;
+      if(misses>5 && detected) hideOverlay();
+      return;
+    }
+
+    matches=new cv.DMatchVectorVector();
+    matcher.knnMatch(refDesc,desc,matches,2);
+
+    const a=[], b=[];
+    for(let i=0;i<matches.size();i++){
+      const pair=matches.get(i);
+      if(pair.size()<2){ pair.delete(); continue; }
+      const m1=pair.get(0), m2=pair.get(1);
+      if(m1.distance < 0.72*m2.distance){
+        const p1=refKP.get(m1.queryIdx).pt;
+        const p2=kp.get(m1.trainIdx).pt;
+        a.push(p1.x,p1.y);
+        b.push(p2.x,p2.y);
+      }
+      pair.delete();
+    }
+
+    if(a.length/2 < 12){
+      misses++;
+      if(misses>5 && detected) hideOverlay();
+      hud.textContent='Buscando la diapositiva…';
+      return;
+    }
+
+    srcPts=cv.matFromArray(a.length/2,1,cv.CV_32FC2,a);
+    dstPts=cv.matFromArray(b.length/2,1,cv.CV_32FC2,b);
+    inlierMask=new cv.Mat();
+    H=cv.findHomography(srcPts,dstPts,cv.RANSAC,4.0,inlierMask);
+
+    if(H.empty()){
+      misses++;
+      if(misses>5 && detected) hideOverlay();
+      return;
+    }
+
+    let inliers=0;
+    for(let i=0;i<inlierMask.rows;i++) if(inlierMask.data[i]) inliers++;
+    if(inliers<9){
+      misses++;
+      if(misses>5 && detected) hideOverlay();
+      return;
+    }
+
+    const rw=refGray.cols, rh=refGray.rows;
+    cornersMat=cv.matFromArray(4,1,cv.CV_32FC2,[0,0,rw,0,rw,rh,0,rh]);
+    projected=new cv.Mat();
+    cv.perspectiveTransform(cornersMat,projected,H);
+
+    const d=projected.data32F;
+    const corners=[
+      {x:d[0],y:d[1]},
+      {x:d[2],y:d[3]},
+      {x:d[4],y:d[5]},
+      {x:d[6],y:d[7]}
+    ];
+
+    const sane=corners.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>-200&&p.x<targetW+200&&p.y>-200&&p.y<targetH+200);
+    if(sane) showOverlay(corners,targetW,targetH);
+
+  }catch(e){
+    console.error(e);
+    hud.textContent='Cámara activa. Ajustando reconocimiento…';
+  }finally{
+    [frame,gray,kp,desc,mask,matches,srcPts,dstPts,H,inlierMask,cornersMat,projected]
+      .forEach(o=>{try{if(o&&o.delete)o.delete();}catch(_){}});
+    processing=false;
+  }
+}
+
+go.addEventListener('click',async()=>{
+  go.disabled=true;
+  go.textContent='INICIANDO…';
+  status.textContent='Abriendo cámara…';
+
+  try{
+    await prepareReference();
+
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
+      audio:false
     });
 
-    scene.addEventListener('arError', () => {
-      hud.textContent = 'No pude abrir la cámara. Revisá el permiso de cámara de este sitio.';
-    });
+    camera.srcObject=stream;
+    await camera.play();
 
-    target.addEventListener('targetFound', () => {
-      hud.textContent = '¡Imagen detectada!';
-      if (!yt.src) yt.src = videoUrl;
-      overlay.style.display = 'flex';
-    });
+    start.style.display='none';
+    hud.textContent='Cámara OK. Apuntá a la diapositiva.';
+    setInterval(analyze,280);
 
-    target.addEventListener('targetLost', () => {
-      hud.textContent = 'Imagen perdida. Volvé a apuntar.';
-      overlay.style.display = 'none';
-      yt.src = '';
-    });
-  </script>
+  }catch(e){
+    console.error(e);
+    status.textContent='Error: '+(e.name||e.message||'no se pudo iniciar');
+    go.disabled=false;
+    go.textContent='REINTENTAR';
+  }
+});
+</script>
 </body>
 </html>
